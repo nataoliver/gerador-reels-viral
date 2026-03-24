@@ -17,8 +17,7 @@ from constants import *
 from typing import List
 from moviepy import *
 from termcolor import colored
-from selenium import webdriver
-from moviepy.video.fx.all import crop
+import moviepy.video.fx as vfx
 from moviepy.config import change_settings
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.service import Service
@@ -659,7 +658,7 @@ Sua saída deve ser apenas o texto final do roteiro, pronto para ser lido, sem m
                 if round((clip.w / clip.h), 4) < 0.5625:
                     if get_verbose():
                         info(f" => Resizing Image: {image_path} to 1080x1920")
-                    clip = crop(
+                    clip = vfx.crop(
                         clip,
                         width=clip.w,
                         height=round(clip.w / 0.5625),
@@ -669,7 +668,7 @@ Sua saída deve ser apenas o texto final do roteiro, pronto para ser lido, sem m
                 else:
                     if get_verbose():
                         info(f" => Resizing Image: {image_path} to 1920x1080")
-                    clip = crop(
+                    clip = vfx.crop(
                         clip,
                         width=round(0.5625 * clip.h),
                         height=clip.h,
