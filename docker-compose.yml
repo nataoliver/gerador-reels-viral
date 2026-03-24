@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  modern-reels-engineer:
+    image: ghcr.io/nataoliver/gerador-reels-viral:latest
+    container_name: reels-viral-worker
+    volumes:
+      - ./.mp:/app/.mp
+      - ./assets:/app/assets
+      - ./fonts:/app/fonts
+      # Mapear as configuracoes como prioridade para edicao offline
+      - ./config.json:/app/config.json
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GEMINI_MODEL=gemini-3.1-flash-lite-preview
+    # Execute a run interativa ou mude o CMD se for rodar em loop/cron
+    command: python3 src/main.py
