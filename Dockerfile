@@ -36,7 +36,7 @@ RUN curl -L -O "https://github.com/JulietaUla/Montserrat/archive/refs/heads/mast
     && fc-cache -f -v
 
 # Bypass strict ImageMagick policies that block TextClip generation
-RUN sed -i '/<policy domain="path" rights="none" pattern="@\*"/d' /etc/ImageMagick-6/policy.xml
+RUN find /etc/ImageMagick* -name "policy.xml" -exec sed -i '/<policy domain="path" rights="none" pattern="@\*"/d' {} + || true
 
 # Copy wheels from builder and install
 COPY --from=builder /app/wheels /wheels
