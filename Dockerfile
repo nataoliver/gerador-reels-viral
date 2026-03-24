@@ -1,19 +1,3 @@
-# Stage 1: Build python packages
-FROM python:3.12-slim AS builder
-
-WORKDIR /app
-COPY requirements.txt .
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install python runtimes into wheels directory
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
-
-# Stage 2: Final runtime image
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -38,10 +22,9 @@ RUN curl -L -O "https://github.com/JulietaUla/Montserrat/archive/refs/heads/mast
 # Bypass strict ImageMagick policies that block TextClip generation
 RUN find /etc/ImageMagick* -name "policy.xml" -exec sed -i '/<policy domain="path" rights="none" pattern="@\*"/d' {} + || true
 
-# Copy wheels from builder and install
-COPY --from=builder /app/wheels /wheels
+# Install python dependencies directly
 COPY requirements.txt .
-RUN pip install --no-cache /wheels/*
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project files
 COPY . .
