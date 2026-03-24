@@ -15,7 +15,7 @@ from status import *
 from uuid import uuid4
 from constants import *
 from typing import List
-from moviepy.editor import *
+from moviepy import *
 from termcolor import colored
 from selenium_firefox import *
 from selenium import webdriver
@@ -267,7 +267,7 @@ Sua saída deve ser apenas o texto final do roteiro, pronto para ser lido, sem m
             image_prompts (List[str]): Generated List of image prompts.
         """
         import math
-        from moviepy.editor import AudioFileClip
+        from moviepy import AudioFileClip
         
         try:
             tts_clip = AudioFileClip(self.tts_path)
@@ -684,7 +684,7 @@ Sua saída deve ser apenas o texto final do roteiro, pronto para ser lido, sem m
 
         import subprocess
         import random
-        from moviepy.editor import VideoFileClip
+        from moviepy import VideoFileClip
 
         tmp_dir = os.path.join(ROOT_DIR, ".mp")
         tmp_videos = []
