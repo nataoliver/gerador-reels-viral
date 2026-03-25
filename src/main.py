@@ -2,6 +2,9 @@ import os
 import sys
 import schedule
 import subprocess
+from fastapi import FastAPI
+
+app = FastAPI(title="MoneyPrinterV2 API")
 
 from art import *
 from cache import *
@@ -458,4 +461,4 @@ if __name__ == "__main__":
     # Force system to start FastAPI (Uvicorn) directly, avoiding terminal interactive menus
     info("Starting FastAPI server directly...")
     import uvicorn
-    uvicorn.run("api:app", host="0.0.0.0", port=8000)
+    uvicorn.run("src.main:app", host="0.0.0.0", port=8000)
