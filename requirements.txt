@@ -16,3 +16,5 @@ srt_equalizer
 undetected_chromedriver
 platformdirs
 google-genai
+fastapi
+uvicorn

@@ -32,4 +32,4 @@ COPY config.json /app/config.json
 COPY . .
 
 # Run the cli tool automatically
-CMD ["python3", "src/main.py"]
+CMD ["python", "src/main.py"]
