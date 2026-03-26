@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoneyPrinterV2 Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="flex justify-between items-center mb-12">
+            <div>
+                <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">MoneyPrinterV2</h1>
+                <p class="text-slate-400 mt-2">Gerador Automático de Reels Virais</p>
+            </div>
+            <div id="connection-status" class="px-4 py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/50 text-sm">
+                Sistema Online
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Gerador -->
+            <section class="bg-slate-800/50 p-8 rounded-2xl border border-slate-700 shadow-xl">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <span class="mr-2">🚀</span> Novo Projeto
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-2">Tema / Tópico do Reels</label>
+                        <input type="text" id="topic-input" placeholder="Ex: 5 curiosidades sobre o Japão" 
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-all">
+                    </div>
+                    <button id="generate-btn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 rounded-xl shadow-lg transform active:scale-95 transition-all">
+                        GERAR VÍDEO
+                    </button>
+                </div>
+
+                <div id="status-container" class="mt-8 hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <span id="status-text" class="text-sm font-medium text-purple-400">Iniciando geração...</span>
+                        <span id="status-percent" class="text-sm text-slate-500">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-700 rounded-full h-2">
+                        <div id="status-bar" class="bg-purple-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p id="status-log" class="mt-4 p-3 bg-slate-900 rounded-lg text-xs text-slate-400 font-mono h-24 overflow-y-auto">
+                        Aguardando logs...
+                    </p>
+                </div>
+            </section>
+
+            <!-- Lista de Vídeos -->
+            <section class="bg-slate-800/50 p-8 rounded-2xl border border-slate-700 shadow-xl">
+                <h2 class="text-2xl font-semibold mb-6 flex items-center">
+                    <span class="mr-2">📂</span> Vídeos Gerados
+                </h2>
+                <div id="video-list" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                    <!-- Vídeos aparecerão aqui -->
+                    <p class="text-slate-500 text-center py-8">Nenhum vídeo encontrado no storage.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const topicInput = document.getElementById('topic-input');
+        const generateBtn = document.getElementById('generate-btn');
+        const statusContainer = document.getElementById('status-container');
+        const statusText = document.getElementById('status-text');
+        const statusBar = document.getElementById('status-bar');
+        const statusLog = document.getElementById('status-log');
+        const videoList = document.getElementById('video-list');
+
+        let currentTaskId = null;
+
+        async function loadVideos() {
+            try {
+                const res = await fetch('/api/videos');
+                const videos = await res.json();
+                if (videos.length === 0) {
+                    videoList.innerHTML = '<p class="text-slate-500 text-center py-8">Nenhum vídeo encontrado.</p>';
+                    return;
+                }
+                videoList.innerHTML = videos.map(v => `
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex justify-between items-center group hover:border-purple-500/50 transition-all">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-purple-600/20 rounded-lg flex items-center justify-center mr-4">
+                                🎬
+                            </div>
+                            <div>
+                                <h3 class="font-medium text-slate-200 truncate w-48">${v.name}</h3>
+                                <p class="text-xs text-slate-500">${v.size} MB • ${v.date}</p>
+                            </div>
+                        </div>
+                        <a href="/storage/${v.name}" download class="opacity-0 group-hover:opacity-100 bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-xs transition-all">
+                            Baixar
+                        </a>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load videos', e);
+            }
+        }
+
+        generateBtn.onclick = async () => {
+            const topic = topicInput.value.trim();
+            if (!topic) return alert('Digite um tema!');
+
+            generateBtn.disabled = true;
+            generateBtn.classList.add('opacity-50');
+            statusContainer.classList.remove('hidden');
+            statusLog.innerHTML = 'Enviando solicitação...<br>';
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic })
+                });
+                const data = await res.json();
+                currentTaskId = data.task_id;
+                pollStatus();
+            } catch (e) {
+                statusLog.innerHTML += `<span class="text-red-500">Erro: ${e.message}</span><br>`;
+                generateBtn.disabled = false;
+            }
+        };
+
+        async function pollStatus() {
+            if (!currentTaskId) return;
+
+            try {
+                const res = await fetch(\`/api/status/\${currentTaskId}\`);
+                const data = await res.json();
+
+                statusText.innerText = data.status;
+                statusBar.style.width = \`\${data.progress}%\`;
+                document.getElementById('status-percent').innerText = \`\${data.progress}%\`;
+                
+                if (data.log) {
+                    statusLog.innerHTML += data.log + '<br>';
+                    statusLog.scrollTop = statusLog.scrollHeight;
+                }
+
+                if (data.progress === 100 || data.error) {
+                    currentTaskId = null;
+                    generateBtn.disabled = false;
+                    generateBtn.classList.remove('opacity-50');
+                    loadVideos();
+                } else {
+                    setTimeout(pollStatus, 2000);
+                }
+            } catch (e) {
+                console.error('Polling error', e);
+                setTimeout(pollStatus, 5000);
+            }
+        }
+
+        loadVideos();
+    </script>
+</body>
+</html>

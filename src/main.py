@@ -2,25 +2,175 @@ import os
 import sys
 import schedule
 import subprocess
-from fastapi import FastAPI
+import asyncio
+import shutil
+import datetime
+from uuid import uuid4
+from typing import Dict, Any
+
+from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from termcolor import colored
+from prettytable import PrettyTable
+
+# Internal imports (relative to src/ if PYTHONPATH is src)
+try:
+    from art import *
+    from cache import *
+    from utils import *
+    from config import *
+    from status import *
+    from constants import *
+    from classes.Tts import TTS
+    from classes.Twitter import Twitter
+    from classes.YouTube import YouTube
+    from classes.Outreach import Outreach
+    from classes.AFM import AffiliateMarketing
+    from llm_provider import list_models, select_model, get_active_model
+except ImportError:
+    # Fallback for different import styles
+    from src.art import *
+    from src.cache import *
+    from src.utils import *
+    from src.config import *
+    from src.status import *
+    from src.constants import *
+    from src.classes.Tts import TTS
+    from src.classes.Twitter import Twitter
+    from src.classes.YouTube import YouTube
+    from src.classes.Outreach import Outreach
+    from src.classes.AFM import AffiliateMarketing
+    from src.llm_provider import list_models, select_model, get_active_model
 
 app = FastAPI(title="MoneyPrinterV2 API")
 
-from art import *
-from cache import *
-from utils import *
-from config import *
-from status import *
-from uuid import uuid4
-from constants import *
-from classes.Tts import TTS
-from termcolor import colored
-from classes.Twitter import Twitter
-from classes.YouTube import YouTube
-from prettytable import PrettyTable
-from classes.Outreach import Outreach
-from classes.AFM import AffiliateMarketing
-from llm_provider import list_models, select_model, get_active_model
+# Global task tracker
+tasks: Dict[str, Any] = {}
+
+class GenerateRequest(BaseModel):
+    topic: str
+
+@app.get("/")
+async def read_index():
+    index_path = os.path.join(ROOT_DIR, "public", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return JSONResponse({"error": "Frontend not found", "path": index_path})
+
+@app.post("/api/generate")
+async def generate_video_api(request: GenerateRequest, background_tasks: BackgroundTasks):
+    task_id = str(uuid4())
+    tasks[task_id] = {
+        "status": "Iniciando...",
+        "progress": 0,
+        "log": f"Iniciando projeto: {request.topic}",
+        "error": False
+    }
+    background_tasks.add_task(run_generation_worker, task_id, request.topic)
+    return {"task_id": task_id}
+
+@app.get("/api/status/{task_id}")
+async def get_task_status(task_id: str):
+    if task_id not in tasks:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return tasks[task_id]
+
+@app.get("/api/videos")
+async def list_videos():
+    storage_dir = os.path.join(ROOT_DIR, "storage")
+    if not os.path.exists(storage_dir):
+        os.makedirs(storage_dir)
+    
+    videos = []
+    for f in os.listdir(storage_dir):
+        if f.endswith(".mp4"):
+            path = os.path.join(storage_dir, f)
+            stats = os.stat(path)
+            videos.append({
+                "name": f,
+                "size": round(stats.st_size / (1024 * 1024), 2),
+                "date": datetime.datetime.fromtimestamp(stats.st_mtime).strftime("%Y-%m-%d %H:%M")
+            })
+    return sorted(videos, key=lambda x: x["date"], reverse=True)
+
+async def run_generation_worker(task_id: str, topic: str):
+    try:
+        # Step 1: Get Account
+        tasks[task_id]["status"] = "Verificando conta..."
+        tasks[task_id]["progress"] = 5
+        
+        cached_accounts = get_accounts("youtube")
+        if not cached_accounts:
+            raise Exception("Nenhuma conta YouTube configurada no cache. Configure uma via CLI primeiro.")
+        
+        acc = cached_accounts[0]
+        
+        # Step 2: Initialize
+        tasks[task_id]["status"] = "Gerando Script..."
+        tasks[task_id]["progress"] = 15
+        
+        tts = TTS()
+        youtube = YouTube(
+            acc["id"], acc["nickname"], acc["firefox_profile"], 
+            acc["niche"], acc["language"]
+        )
+        
+        # Override topic
+        youtube.subject = topic
+        tasks[task_id]["log"] = f"Tema definido: {topic}"
+
+        # Step 3: Generation Steps (Manual for progress reporting)
+        tasks[task_id]["status"] = "Criando roteiro..."
+        youtube.generate_script()
+        tasks[task_id]["progress"] = 30
+        
+        tasks[task_id]["status"] = "Gerando Locução..."
+        youtube.generate_script_to_speech(tts)
+        tasks[task_id]["progress"] = 45
+        
+        tasks[task_id]["status"] = "Criando Prompts de Imagem..."
+        youtube.generate_prompts()
+        tasks[task_id]["progress"] = 60
+        
+        tasks[task_id]["status"] = "Gerando Imagens AI..."
+        for i, prompt in enumerate(youtube.image_prompts):
+            tasks[task_id]["log"] = f"Gerando imagem {i+1}/{len(youtube.image_prompts)}..."
+            youtube.generate_image(prompt)
+            tasks[task_id]["progress"] = 60 + int((i+1)/len(youtube.image_prompts) * 20)
+
+        tasks[task_id]["status"] = "Editando Vídeo Final..."
+        tasks[task_id]["progress"] = 85
+        video_path = youtube.combine()
+        
+        # Step 4: Finalize
+        tasks[task_id]["status"] = "Movendo para o Storage..."
+        tasks[task_id]["progress"] = 95
+        
+        storage_dir = os.path.join(ROOT_DIR, "storage")
+        if not os.path.exists(storage_dir):
+            os.makedirs(storage_dir)
+            
+        filename = f"reels_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}.mp4"
+        final_dest = os.path.join(storage_dir, filename)
+        
+        shutil.move(video_path, final_dest)
+        
+        tasks[task_id]["status"] = "Concluído!"
+        tasks[task_id]["progress"] = 100
+        tasks[task_id]["log"] = f"Sucesso! Vídeo salvo como {filename}"
+
+    except Exception as e:
+        tasks[task_id]["error"] = True
+        tasks[task_id]["status"] = "Erro na Geração"
+        tasks[task_id]["log"] = f"ERRO CRÍTICO: {str(e)}"
+
+# Mount static files
+storage_path = os.path.join(ROOT_DIR, "storage")
+if not os.path.exists(storage_path):
+    os.makedirs(storage_path)
+app.mount("/storage", StaticFiles(directory=storage_path), name="storage")
 
 def main():
     """Main entry point for the application, providing a menu-driven interface
@@ -442,6 +592,8 @@ if __name__ == "__main__":
 
     # Setup file tree
     assert_folder_structure()
+    if not os.path.exists(os.path.join(ROOT_DIR, "storage")):
+        os.makedirs(os.path.join(ROOT_DIR, "storage"))
 
     # Remove temporary files
     rem_temp_files()
