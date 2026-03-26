@@ -218,8 +218,7 @@ Sua saída deve ser apenas o texto final do roteiro, pronto para ser lido, sem m
         completion = self.generate_response(
             prompt,
             system_instruction=system_instruction.strip(),
-            temperature=1.0,
-            thinking=True
+            temperature=1.0
         )
 
         # Apply regex to remove *

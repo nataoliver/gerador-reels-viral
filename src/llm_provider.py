@@ -44,8 +44,7 @@ def generate_text(
     prompt: str, 
     model_name: str | None = None, 
     system_instruction: str | None = None, 
-    temperature: float = 1.0, 
-    thinking: bool = False
+    temperature: float = 1.0
 ) -> str:
     """
     Generates text using Google Gemini Mode.
@@ -55,7 +54,6 @@ def generate_text(
         model_name (str): Optional model name override
         system_instruction (str): Optional system instruction
         temperature (float): Optional temperature override (default 1.0)
-        thinking (bool): Enable Gemini thinking feature
 
     Returns:
         response (str): Generated text
@@ -70,9 +68,6 @@ def generate_text(
 
     if system_instruction:
         config_kwargs["system_instruction"] = system_instruction
-
-    if thinking:
-        config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget_tokens=1024)
 
     config = types.GenerateContentConfig(**config_kwargs)
 
