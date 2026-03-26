@@ -135,12 +135,12 @@
             if (!currentTaskId) return;
 
             try {
-                const res = await fetch(\`/api/status/\${currentTaskId}\`);
+                const res = await fetch(`/api/status/${currentTaskId}`);
                 const data = await res.json();
 
                 statusText.innerText = data.status;
-                statusBar.style.width = \`\${data.progress}%\`;
-                document.getElementById('status-percent').innerText = \`\${data.progress}%\`;
+                statusBar.style.width = `${data.progress}%`;
+                document.getElementById('status-percent').innerText = `${data.progress}%`;
                 
                 if (data.log) {
                     statusLog.innerHTML += data.log + '<br>';
