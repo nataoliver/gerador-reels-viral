@@ -102,20 +102,21 @@ async def run_generation_worker(task_id: str, topic: str):
         tasks[task_id]["progress"] = 5
         
         cached_accounts = get_accounts("youtube")
-        if not cached_accounts:
-            raise Exception("Nenhuma conta YouTube configurada no cache. Configure uma via CLI primeiro.")
-        
-        acc = cached_accounts[0]
+        acc = cached_accounts[0] if cached_accounts else None
         
         # Step 2: Initialize
-        tasks[task_id]["status"] = "Gerando Script..."
+        tasks[task_id]["status"] = "Iniciando Componentes..."
         tasks[task_id]["progress"] = 15
         
         tts = TTS()
-        youtube = YouTube(
-            acc["id"], acc["nickname"], acc["firefox_profile"], 
-            acc["niche"], acc["language"]
-        )
+        if acc:
+            youtube = YouTube(
+                acc["id"], acc["nickname"], acc["firefox_profile"], 
+                acc["niche"], acc["language"]
+            )
+        else:
+            tasks[task_id]["log"] = "Aviso: Nenhuma conta detectada. Usando modo de geração local."
+            youtube = YouTube() # Default setup
         
         # Override topic
         youtube.subject = topic

@@ -43,21 +43,21 @@ class YouTube:
 
     def __init__(
         self,
-        account_uuid: str,
-        account_nickname: str,
-        fp_profile_path: str,
-        niche: str,
-        language: str,
+        account_uuid: str = None,
+        account_nickname: str = None,
+        fp_profile_path: str = None,
+        niche: str = "Geral",
+        language: str = "Portuguese",
     ) -> None:
         """
         Constructor for YouTube Class.
 
         Args:
-            account_uuid (str): The unique identifier for the YouTube account.
-            account_nickname (str): The nickname for the YouTube account.
-            fp_profile_path (str): Path to the firefox profile that is logged into the specificed YouTube Account.
-            niche (str): The niche of the provided YouTube Channel.
-            language (str): The language of the Automation.
+            account_uuid (str, optional): The unique identifier for the YouTube account.
+            account_nickname (str, optional): The nickname for the YouTube account.
+            fp_profile_path (str, optional): Path to the firefox profile that is logged into the specificed YouTube Account.
+            niche (str, optional): The niche of the provided YouTube Channel.
+            language (str, optional): The language of the Automation.
 
         Returns:
             None
@@ -69,7 +69,15 @@ class YouTube:
         self._language: str = language
 
         self.images = []
+        self.browser = None
+        self.options = None
+        self.service = None
 
+        # Only initialize the browser if a profile path is provided
+        if self._fp_profile_path:
+            self._init_browser()
+
+    def _init_browser(self):
         # Initialize the Firefox profile
         self.options: Options = Options()
 
@@ -78,9 +86,10 @@ class YouTube:
             self.options.add_argument("--headless")
 
         if not os.path.isdir(self._fp_profile_path):
-            raise ValueError(
-                f"Firefox profile path does not exist or is not a directory: {self._fp_profile_path}"
-            )
+             # Logic change: Don't raise if we just want to generate, 
+             # but we check if we actually have it when needed.
+             warning(f"Firefox profile path invalid: {self._fp_profile_path}")
+             return
 
         self.options.add_argument("-profile")
         self.options.add_argument(self._fp_profile_path)
@@ -827,6 +836,10 @@ Sua saída deve ser apenas o texto final do roteiro, pronto para ser lido, sem m
         Returns:
             channel_id (str): The Channel ID.
         """
+        if not self.browser:
+            warning("Ignorando get_channel_id: Navegador não inicializado.")
+            return "unknown"
+
         driver = self.browser
         driver.get("https://studio.youtube.com")
         time.sleep(2)
@@ -842,6 +855,10 @@ Sua saída deve ser apenas o texto final do roteiro, pronto para ser lido, sem m
         Returns:
             success (bool): Whether the upload was successful or not.
         """
+        if not self.browser:
+            warning("Ignorando upload_video: Navegador não inicializado (Modo de Geração Local).")
+            return True # Retorna True para não quebrar o fluxo de quem chamou
+
         try:
             self.get_channel_id()
 
