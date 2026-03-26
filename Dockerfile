@@ -3,6 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 ENV IMAGEMAGICK_BINARY=/usr/bin/convert
+ENV PYTHONPATH=/app/src
 # Install FFmpeg, ImageMagick (TextClip dependencies), and font utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
